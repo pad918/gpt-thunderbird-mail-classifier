@@ -1,6 +1,6 @@
 {
     "manifest_version": 2,
-    "name": "Hello World Example",
+    "name": "gptclassifier",
     "description": "A basic Hello World example extension!",
     "version": "1.0",
     "author": "Måns Abrahamsson",
@@ -10,6 +10,13 @@
             "strict_min_version": "78.0"
         }
     },
+    "options_ui": {
+        "page": "options.html",
+        "open_in_tab": true
+    },
+    "browser_action": {
+        "default_popup": "popup.html"
+    },
     "background": {
         "scripts": [
           "background.js"
@@ -18,10 +25,9 @@
     "permissions": [
         "messagesRead",
         "messagesModify",
-        "messagesImport",
         "messagesMove",
-        "sensitiveDataUpload",
         "messagesTags",
-        "accountsRead"
+        "accountsRead",
+        "storage"
     ]
 }

@@ -29,21 +29,11 @@ function getFirstNumberInRange(string, min=0, max=100){
     return firstInRange;
 }
 
-// The api key is stored as a tag in the following form:
-// Tag name: open_ai_api_key_<key>
-async function getApiKey(){
-    allTags = await messenger.messages.listTags();
-    console.log(allTags);
-    api_key_tag_name = allTags.find(t => t.tag.startsWith("open_ai_api_key_")).tag;
-    if(api_key_tag_name)
-        return api_key_tag_name.replace("open_ai_api_key_", "");
-    else
-        return null; 
-}
-
 async function testtest(){
-    apiKey = await getApiKey();
-    console.log("APIKEY: " + apiKey)
+    
+    //await storage.local.set({ "OPENAI_API_KEY": apiKey });
+    apiKey2 = (await browser.storage.local.get("OPENAI_API_KEY")).OPENAI_API_KEY;
+    console.log("Using api key: " + apiKey2);
 }
 
 testtest();
@@ -53,7 +43,7 @@ async function getChatResponse(prompt, n = 3){
     if(n<0){
         return "GPT FAILED, tried after trying multiple times!"
     }
-    const apiKey = await getApiKey();
+    const apiKey = (await browser.storage.local.get("OPENAI_API_KEY")).OPENAI_API_KEY;
     const apiUrl = 'https://api.openai.com/v1/chat/completions'; 
     score = await fetch(apiUrl, {
       method: 'POST',
