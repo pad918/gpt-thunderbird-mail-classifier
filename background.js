@@ -45,6 +45,7 @@ async function getChatResponse(prompt, n = 3){
     }
     const apiKey = (await browser.storage.local.get("OPENAI_API_KEY")).OPENAI_API_KEY;
     const apiUrl = 'https://api.openai.com/v1/chat/completions'; 
+    console.log("USING API KEY:: " + apiKey);
     score = await fetch(apiUrl, {
       method: 'POST',
       headers: {
