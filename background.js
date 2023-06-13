@@ -17,6 +17,18 @@ async function ensureTagsExists(){
     }
 }
 ensureTagsExists()
+
+//Returns the first integer in the string in the range of [min, max]
+function getFirstNumberInRange(string, min=0, max=100){
+    stringNumbers = string.match(/^\d+|\d+\b|\d+(?=\w)/g);
+    if(!stringNumbers){
+        return null;
+    }
+    numbers = stringNumbers.map(s => parseInt(s));
+    firstInRange = numbers.find(n => (n >= min && n <= max));
+    return firstInRange;
+}
+
 // The api key is stored as a tag in the following form:
 // Tag name: open_ai_api_key_<key>
 async function getApiKey(){
@@ -57,9 +69,11 @@ async function getChatResponse(prompt, n = 3){
     })
       .then(response => response.json())
       .then(data => {
+        console.log("data:");
+        console.log(data);
         // Handle the response data
         data = data.choices[0].message.content;
-        console.log("DATA: " + data);
+        
         score = data;
         return data
       })
@@ -75,36 +89,45 @@ async function getChatResponse(prompt, n = 3){
     return score
 }
 
-//Add callback
-browser.messages.onNewMailReceived.addListener(
-    async (folder, messages) => {
-        
-        console.log("Recived message:")
-        messages = messages.messages
-        //console.log(messages)
-        m_id = messages[0].id
-        console.log("ID: " + m_id)
-        part = await messenger.messages.getFull(m_id)
+async function scoreMail(mailId){
+    part = await messenger.messages.getFull(mailId)
         mail_body = part.parts[0].parts.find(p => p.contentType=="text/plain").body
+        
+        // use only the first 400 characters for openAI!
+        limited_mail_body = mail_body.substring(0, 400)
 
-        console.log("part body: " + mail_body)
-        messages.forEach(m => console.log(m))
-        messages.forEach(m => console.log(m.author))
+        console.log("part body: " + limited_mail_body)
         //parts.forEach(b => console.log(b.body))
         console.log("CALLING GPT!");
         score = await getChatResponse(
-            `You are asked to evaluate the level of positivity or 
-            negativity in emails using a scale from 0 to 100. A score
-             of 0 represents the most negative possible response, 
-             while a score of 100 represents the most positive possible
-              response. Please respond only with the numerical score. 
-              Here is the email for you to rate: 
-            \n${mail_body}`)
+            `You are requested to assess the degree of positivity or 
+            negativity in the information portraied in an email 
+            using a scale ranging from 0 to 100, 0 being the most negative
+            and 100 being the most positive.
+             The evaluation is based on 
+             the content of the email and its impact on the recipients life,
+              rather than the tone of the mail. Please provide a single 
+              sentence explaining your assessment along with the 
+              corresponding numerical score.
+              
+              Score examples:
+                Mail about getting cancer: score = 0
+                Mail about failing a uni course: score = 25
+                Mail about having to work overtime: socre = 40
+                Mail about recieving a bonus: score = 75
+                Mail about achieving a promotion: score = 80
+              
+              Here is the email for you to evaluate: 
+            \n${limited_mail_body}`)
         
         try{
             scoreText = "";
-            intScore = parseInt(score)
-            if(intScore<10){
+            console.log("GPT DATA FOR SCORING: " + score);
+            intScore = getFirstNumberInRange(score, min = 0, max = 100);
+            if(intScore == null){
+                throw "NOPE!";
+            }
+            else if(intScore<20){
                 scoreText = "verybad";
             }
             else if(intScore<40){
@@ -113,26 +136,53 @@ browser.messages.onNewMailReceived.addListener(
             else if(intScore<=60){
                 scoreText = "ok";
             }
-            else if(intScore<90){
+            else if(intScore<80){
                 scoreText = "good";
             }
-            else if(intScore>=90){
+            else if(intScore>=80){
                 scoreText = "verygood";
             }
-            else{
-                throw "NOPE!"
-            }
             console.log("How good was the mail? GPT ANSWERED: " + scoreText + 
-                ` (${score}/100)`);
+                ` (${intScore}/100)`);
             tags = {tags: [scoreText]};
             //Add the new positivity score tags to the mail!
-            messenger.messages.update(m_id, tags);
+            messenger.messages.update(mailId, tags);
             
 
         }
         catch(e){
             console.log("GPT failed...: " + e);
         }
+}
+
+//Add callback
+browser.messages.onNewMailReceived.addListener(
+    async (folder, messages) => {
+        
+        console.log(`Recived ${messages.messages.length} messages`)
+        //console.log(messages)
+        try{
+        messages = messages.messages.map(m => 
+            m
+            );
+        }
+        catch(e) {
+            console.log("FAILED!!!" + e);
+        }
+        console.log("IDs: ");
+        console.log(messages);
+
+        //Score the mail
+        messages.forEach(async (m) => 
+            {
+                console.log("Autor:");
+                console.log(m.author);
+                if(!m.author.includes("no-reply"))
+                    await scoreMail(m.id);
+                else
+                    console.log("Will not score: " + m.author);
+            }
+        );
         
     }
 )
