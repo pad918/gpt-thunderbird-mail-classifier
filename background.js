@@ -81,9 +81,30 @@ async function getChatResponse(prompt, n = 3){
 }
 
 async function scoreMail(mailId){
-    part = await messenger.messages.getFull(mailId)
-        mail_body = part.parts[0].parts.find(p => p.contentType=="text/plain").body
-        
+        part = await messenger.messages.getFull(mailId);
+        console.log("PART:");
+        console.log(part);
+
+        parts = part.parts.map(p => p.parts).flat();
+        console.log("Parts:")
+        console.log(parts);
+        text_part = parts.find(p => p.contentType=="text/plain")
+        // If there is no plain text message, extract text from the text/html
+        if(!text_part){
+            html_part = parts.find(p => p.contentType=="text/html")
+            if(!html_part){
+                console.log("Mail does not contain plain or html mime formats...");
+                return;
+            }
+            text_part = html_part.body.replace(/<[^>]+>/g, '');
+            mail_body = text_part;
+        }
+        else{
+            mail_body = text_part.body
+        }
+        //Clean the mail body by removing links in <LINK>
+        mail_body = mail_body.replace(/<[^>]*>?/gm, '');
+
         // use only the first 400 characters for openAI!
         limited_mail_body = mail_body.substring(0, 400)
 
